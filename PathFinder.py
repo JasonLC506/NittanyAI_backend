@@ -7,8 +7,10 @@ from scipy.sparse import csr_matrix
 import cPickle
 from Queue import Queue
 import warnings
+import difflib
 
 from priorCourse import NNegLasso as model_grade
+from grade_model import GradeModel as model_grade
 from priorCourse import ind2onehot
 
 class PathFinder(object):
@@ -16,23 +18,23 @@ class PathFinder(object):
                  cou_name_dict_f="data/name_dict",
                  graph_prerequisite_f="data/graph_prerequisite_sparse",
                  graph_prior_cou_f="data/graph_prior_cou_sparse",
-                 graph_sub_mandatory_f="data/graph_sub_mandatory"):
+                 graph_sub_mandatory_f="data/graph_sub_mandatory",
+                 course_embds_f="data/embds"):
 
         with open(cou_name_dict_f, "r") as df:
-            self.cou_name_dict, self.cou_id_dict, self.sub_id2name_dict = cPickle.load(df)
-            self.cou_id2name_dict = self._dict_transit(self.cou_id_dict, self.cou_name_dict)
-            self.cou_name2id_dict = self._dict_reverse(self.cou_id2name_dict)
-            self.cou_cid2id = self._dict_reverse(self.cou_id_dict)
-            self.sub_name2id_dict = self._dict_reverse(self.sub_id2name_dict)
+            self.cou_name2id_dict, self.cou_id2name_dict = cPickle.load(df)
         with open(graph_prerequisite_f, "r") as df:
             self.graph_prerequisite, _ = cPickle.load(df)
         with open(graph_prior_cou_f, "r") as df:
-            self.graph_prior, self.cou_bias = cPickle.load(df)
+            self.graph_prior = cPickle.load(df)
         with open(graph_sub_mandatory_f, "r") as df:
             self.graph_sub_mandatory = cPickle.load(df)     # not a graph actually
+        with open(course_embds_f, "r") as df:
+            self.embds = cPickle.load(df)
 
         self.C = len(self.cou_id2name_dict)
         self.N_sub = len(self.graph_sub_mandatory)
+        self.sub_list = sorted(self.graph_sub_mandatory.keys())
 
         self.grade_model = self._grade_model_initial()
 
@@ -45,11 +47,18 @@ class PathFinder(object):
     def cou_name2ind(self, name):
         return self.cou_name2id_dict[name]
 
-    def sub_ind2name(self, ind):
-        return self.sub_id2name_dict[int(ind)]
+    def sub_find(self, sub_name):
+        if sub_name in self.graph_sub_mandatory:
+            return sub_name
+        else:
+            sub_name_up = sub_name.upper()
+            for cand in self.sub_list:
+                if "(" + sub_name_up + ")" in cand:
+                    return cand
+        # not found #
+        cand_list = difflib.get_close_matches(sub_name, self.sub_list, n=5)
+        raise ValueError("sub_name: %s not found, did you mean %s?" % (sub_name, str(cand_list)))
 
-    def sub_name2ind(self, name):
-        return self.sub_name2id_dict[name]
     ##################################################################################################################
 
     ##################################################################################################################
@@ -99,15 +108,16 @@ class PathFinder(object):
                                       weight_threshold=weight_threshold, loop=loop)
         return sub_graph
 
-    def grade_estimate(self, target_ind, source_inds=[]):
+    def grade_estimate(self, target_ind, source_inds=[], course_grades=None):
         """
         predict target course grade given courses taken (current version only uses cou_taken without grades earned)
         :param target_ind: target course index
         :param source_inds: courses taken indices
         :return: grade in [0,1]
         """
-        input = ind2onehot(source_inds, self.C)
-        return self.grade_model[target_ind].predict(input)
+        if course_grades is not None:
+            assert len(source_inds) == len(course_grades)
+        return self.grade_model.predict(target_ind, source_inds, course_grades)
     #################################################################################################################
 
     #################################################################################################################
@@ -118,11 +128,12 @@ class PathFinder(object):
     def show_mandatory_remain(self, sub, source_inds=[]):
         """
         return list of mandatory courses indices not taken yet
-        :param sub: subject index of the query student
+        :param sub: subject name of the query student
         :param source_inds: courses indices taken already
         :return: list of course index
         """
-        mandatory_total = map(self._cou_cid2ind, self.graph_sub_mandatory[sub])
+        sub = self.sub_find(sub)
+        mandatory_total = self.graph_sub_mandatory[sub]
         mendatory_remain = list(set(mandatory_total) - set(source_inds))
         mendatory_remain.sort()
         return mendatory_remain
@@ -210,16 +221,16 @@ class PathFinder(object):
                 inds = np.array([inds], dtype=np.int64)
             return next_ids[inds], next_weights[inds]
 
-    def _cou_ind2cid(self, ind):
-        # from node index to course id #
-        return self.cou_id_dict[ind]
-
-    def _cou_cid2ind(self, cid):
-        return self.cou_cid2id[cid]
-
-    def _cou_cid2name(self, cid):
-        # from course id to course name #
-        return self.cou_id2name_dict[cid]
+    # def _cou_ind2cid(self, ind):
+    #     # from node index to course id #
+    #     return self.cou_id_dict[ind]
+    #
+    # def _cou_cid2ind(self, cid):
+    #     return self.cou_cid2id[cid]
+    #
+    # def _cou_cid2name(self, cid):
+    #     # from course id to course name #
+    #     return self.cou_id2name_dict[cid]
 
     def _dict_reverse(self, dictionary):
         dict_rev = {}
@@ -238,6 +249,5 @@ class PathFinder(object):
         return dict_transit
 
     def _grade_model_initial(self):
-        self.grade_model = [model_grade(C=self.C).restore(self.graph_prior.getrow(i), self.cou_bias[i])
-                            for i in range(self.C)]
+        self.grade_model = model_grade(self.embds)
         return self.grade_model
