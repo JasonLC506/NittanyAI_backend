@@ -16,6 +16,7 @@ from priorCourse import ind2onehot
 class PathFinder(object):
     def __init__(self,
                  cou_name_dict_f="data/name_dict",
+                 cou_desc_dict_f="data/cou_desc_dict",
                  graph_prerequisite_f="data/graph_prerequisite_sparse",
                  graph_prior_cou_f="data/graph_prior_cou_sparse",
                  graph_sub_mandatory_f="data/graph_sub_mandatory",
@@ -23,6 +24,8 @@ class PathFinder(object):
 
         with open(cou_name_dict_f, "r") as df:
             self.cou_name2id_dict, self.cou_id2name_dict = cPickle.load(df)
+        with open(cou_desc_dict_f, "r") as df:
+            self.cou_desc_dict = cPickle.load(df)
         with open(graph_prerequisite_f, "r") as df:
             self.graph_prerequisite, _ = cPickle.load(df)
         with open(graph_prior_cou_f, "r") as df:
@@ -138,6 +141,17 @@ class PathFinder(object):
         mendatory_remain.sort()
         return mendatory_remain
     #################################################################################################################
+
+    #################################################################################################################
+    # show course description #
+    def course_description(self, cou_name):
+        """
+        :param cou_name: name of course (not course id)
+        :return: course_description, course_credit
+        """
+        if cou_name not in self.cou_desc_dict:
+            return None, None
+        return self.cou_desc_dict[cou_name]["description"], self.cou_desc_dict[cou_name]["credits"]
 
     #################################################################################################################
     # private functions #
