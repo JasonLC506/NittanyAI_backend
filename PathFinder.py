@@ -147,11 +147,16 @@ class PathFinder(object):
     def course_description(self, cou_name):
         """
         :param cou_name: name of course (not course id)
-        :return: course_description, course_credit
+        :return: course_description dictionary {
+            "title":
+            "description":
+            "credits":
+            "url":
+        }
         """
         if cou_name not in self.cou_desc_dict:
             return None, None
-        return self.cou_desc_dict[cou_name]["description"], self.cou_desc_dict[cou_name]["credits"]
+        return self.cou_desc_dict[cou_name]
 
     #################################################################################################################
     # private functions #
