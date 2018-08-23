@@ -121,6 +121,19 @@ class PathFinder(object):
         if course_grades is not None:
             assert len(source_inds) == len(course_grades)
         return self.grade_model.predict(target_ind, source_inds, course_grades)
+
+    def top_courses(self, K=3, source_inds=[], course_grades=None, id_filter=None):
+        """
+        return top K courses in terms of estimated grades given source course grades
+        :param K: top K
+        :param source_inds: courses taken indices
+        :param course_grades: course taken grades
+        :param id_filter: callable function takes input as course_id, return bool, true for valid course, which can be returned as top_K
+        :return: top_K_course_ids, top_K_course_grades
+        """
+        if course_grades is not None:
+            assert len(source_inds) == len(course_grades)
+        return self.grade_model.top_courses(K=K, input_ind=source_inds, input_grades=course_grades, id_filter=id_filter)
     #################################################################################################################
 
     #################################################################################################################
