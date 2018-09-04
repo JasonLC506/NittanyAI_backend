@@ -39,11 +39,10 @@ class GradeModel(object):
         grades = self.batch_predict(input_ind=input_ind, input_grades=input_grades)
         ids = np.argsort(grades, axis=0)
         id_mask = []
-        for i in ids.shape[0]:
+        for i in range(ids.shape[0]):
             id = ids[i]
-            if id_filter is not None and not id_filter(id):
-                continue
-            id_mask.append(id)
+            if id_filter is not None and id_filter(id):
+                id_mask.append(i)
         id_mask = np.array(id_mask, dtype=int)
         ids = ids[id_mask][-min(id_mask.shape[0], K):]
         gs = grades[ids]
