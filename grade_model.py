@@ -11,6 +11,9 @@ class GradeModel(object):
         input = input_ind + [-1]
         if input_grades is None:
             input_grades = [DEFAULT_GRADE] * len(input_ind)
+        for id in range(len(input_ind)):
+            if target_ind == input_ind[id]:
+                return input_grades[id]
         input_grades.append(1.0)
         emb_ss = self.embds[input].reshape([len(input), self.embds.shape[-1]])
         emb_ss = np.transpose(np.multiply(np.transpose(emb_ss), np.array(input_grades)))
