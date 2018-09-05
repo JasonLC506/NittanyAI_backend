@@ -41,7 +41,7 @@ class GradeModel(object):
         id_mask = []
         for i in range(ids.shape[0]):
             id = ids[i]
-            if id_filter is not None and id_filter(id):
+            if (id_filter is not None and id_filter(id)) or id_filter is None:
                 id_mask.append(i)
         id_mask = np.array(id_mask, dtype=int)
         ids = ids[id_mask][-min(id_mask.shape[0], K):]
